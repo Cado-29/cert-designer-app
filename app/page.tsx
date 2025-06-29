@@ -1,103 +1,206 @@
-import Image from "next/image";
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useDropzone } from "react-dropzone";
+import { FabricJSCanvas, useFabricJSEditor } from "fabricjs-react";
+import * as fabric from "fabric";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [template, setTemplate] = useState<string | null>(null);
+  const { editor, onReady } = useFabricJSEditor();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    console.log("Editor initialized:", editor);
+  }, [editor]);
+
+  useEffect(() => {
+    if (!template || !editor || !editor.canvas) return;
+
+    const canvasWidth = 800;
+    const canvasHeight = 600;
+
+    editor.canvas.setWidth(canvasWidth);
+    editor.canvas.setHeight(canvasHeight);
+    editor.canvas.clear();
+
+    const imgElement = new window.Image();
+    imgElement.onload = () => {
+      const imgInstance = new fabric.Image(imgElement, {
+        left: 0,
+        top: 0,
+        selectable: false,
+        evented: false,
+        hoverCursor: "default",
+      });
+
+      imgInstance.scaleToWidth(canvasWidth);
+      imgInstance.scaleToHeight(canvasHeight);
+
+      editor.canvas.add(imgInstance);
+      (imgInstance as any).sendToBack();
+      editor.canvas.renderAll();
+
+      console.log("Image added to canvas successfully");
+    };
+
+    imgElement.onerror = (err) => {
+      console.error("Failed to load image", err);
+    };
+
+    imgElement.src = template;
+  }, [template, editor]);
+
+  const onDrop = (acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    const reader = new FileReader();
+    reader.onload = () => {
+      setTemplate(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const addTextField = (text = "Edit me") => {
+    if (!editor) return;
+
+    const iText = new fabric.IText(text, {
+      left: 100,
+      top: 100,
+      fontSize: 24,
+      fill: "#000",
+      backgroundColor: "rgba(255,255,255,0.5)",
+      borderColor: "gray",
+      cornerColor: "blue",
+      cornerSize: 6,
+      padding: 5,
+      editable: true,
+    });
+
+    editor.canvas.add(iText);
+    editor.canvas.setActiveObject(iText);
+    editor.canvas.renderAll();
+  };
+
+  const addRectangle = () => {
+    if (!editor) return;
+
+    const rect = new fabric.Rect({
+      left: 150,
+      top: 150,
+      width: 200,
+      height: 100,
+      fill: "rgba(0,123,255,0.5)",
+      stroke: "#0056b3",
+      strokeWidth: 2,
+      cornerColor: "blue",
+      cornerSize: 6,
+      transparentCorners: false,
+    });
+
+    editor.canvas.add(rect);
+    editor.canvas.setActiveObject(rect);
+    editor.canvas.renderAll();
+  };
+
+  // NEW: Download canvas as PNG image
+  const downloadCanvasImage = () => {
+    if (!editor || !editor.canvas) return;
+
+    const dataURL = editor.canvas.toDataURL({
+      format: "png",
+      quality: 1,
+      multiplier: 1,
+    });
+
+    // Create a temporary link and trigger download
+    const link = document.createElement("a");
+    link.href = dataURL;
+    link.download = "certificate.png";
+    link.click();
+  };
+
+  const { getRootProps, getInputProps } = useDropzone({ onDrop });
+
+  return (
+    <div style={{ display: "flex", gap: 20 }}>
+      {/* Sidebar with predefined elements */}
+      <div
+        style={{
+          width: 200,
+          border: "1px solid #ccc",
+          padding: 10,
+          borderRadius: 6,
+          userSelect: "none",
+        }}
+      >
+        <h3>Predefined Elements</h3>
+        <button
+          onClick={() => addTextField("Certificate Title")}
+          style={{ width: "100%", marginBottom: 10 }}
+        >
+          Add Title Text
+        </button>
+
+        <button
+          onClick={() => addTextField("Recipient Name")}
+          style={{ width: "100%", marginBottom: 10 }}
+        >
+          Add Name Text
+        </button>
+
+        <button
+          onClick={() => addTextField("Recipient Name")}
+          style={{ width: "100%", marginBottom: 10 }}
+        >
+          Text Field
+        </button>
+
+        <hr style={{ margin: "20px 0" }} />
+
+        {/* Image upload dropzone */}
+        <div
+          {...getRootProps()}
+          style={{
+            border: "2px dashed black",
+            padding: 20,
+            cursor: "pointer",
+            textAlign: "center",
+            userSelect: "none",
+          }}
+        >
+          <input {...getInputProps()} />
+          <p>Drag & drop template image here<br />or click to select file</p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+
+        {/* NEW: Download button */}
+        <button
+          onClick={downloadCanvasImage}
+          style={{
+            marginTop: 20,
+            width: "100%",
+            padding: "10px",
+            backgroundColor: "#4CAF50",
+            color: "white",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontWeight: "bold",
+          }}
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          Download Image
+        </button>
+      </div>
+
+      {/* Canvas container */}
+      <div
+        style={{
+          border: "1px solid #ccc",
+          width: 800,
+          height: 600,
+          position: "relative",
+        }}
+      >
+        <FabricJSCanvas className="canvas" onReady={onReady} />
+      </div>
     </div>
   );
 }
